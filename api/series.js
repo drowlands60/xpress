@@ -39,7 +39,7 @@ seriesRouter.get('/:seriesId', (req, res, next) => {
     res.status(200).send({series: req.series});
 });
 
-seriesRouter.post('/:seriesId', (req, res, next) => {
+seriesRouter.post('/', (req, res, next) => {
     const name = req.body.series.name;
     const description = req.body.series.description;
 
@@ -48,8 +48,11 @@ seriesRouter.post('/:seriesId', (req, res, next) => {
     } 
     
     db.run('INSERT INTO SERIES (name, description) VALUES ($name, $description)',
-        {$name: name, $description: description},
-        err => {
+        {
+        $name: name, 
+        $description: description
+        },
+        function(err) {
             if(err){
                 next(err);
             } else {
@@ -93,37 +96,32 @@ seriesRouter.put('/:seriesId', (req, res, next) => {
 });
 
 
-seriesRouter.delete('/:seriesId', (res, req, next) => {
-    const id = req.body.series.id;
+seriesRouter.delete('/:seriesId', (req, res, next) => {
+    const id = req.params.seriesId;
     
-    db.serialize( () => {
 
-        db.all('SELECT * FROM Issue WHERE series_id = $seriesId', 
+        db.get('SELECT * FROM Issue WHERE Issue.series_id = $seriesId', 
         {$seriesId: id},
         (err, rows) => {
             if(err) {
                 next(err);
-            } 
-
-            if(!rows) {
-                return res.status(400).send();
+            } else if(rows) {
+                 res.status(400).send();
+            }  else {
+                db.run('DELETE FROM Series WHERE id = $id',
+                    {$id: id},
+                    err => {
+                        if(err){
+                            next(err);
+                        } else {
+                            res.status(204).send();
+                        }
+                    }
+                );
             }
-        });
-
-        db.run('DELETE * FROM Series WHERE id = $id',
-        {$id: id},
-        err => {
-            if(err){
-                next(err);
-            } else {
-                res.status(204).send();
-            }
-        });
-
-    });
+        }
+    );
 });
-
-
 
 
 module.exports = seriesRouter;
